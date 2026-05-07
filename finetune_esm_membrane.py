@@ -163,6 +163,8 @@ def main():
     df = pd.read_csv(csv_path)
     df = df.dropna(subset=["sequence", label_col])
     df[label_col] = df[label_col].astype(int)
+    if args.task == "binary":
+        df[label_col] = (df[label_col] > 0).astype(int)
 
     df_train = df[df["split"] == "train"].reset_index(drop=True)
     df_val   = df[df["split"] == "val"].reset_index(drop=True)
@@ -214,7 +216,7 @@ def main():
         greater_is_better           = True,
         logging_steps               = 50,
         seed                        = args.seed,
-        no_cuda                     = args.no_cuda,
+        use_cpu                     = args.no_cuda,
         report_to                   = "none",
         save_total_limit            = 2,
         dataloader_num_workers      = 2,
