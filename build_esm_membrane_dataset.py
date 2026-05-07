@@ -333,15 +333,9 @@ def merge_and_deduplicate(dfs: list[pd.DataFrame]) -> pd.DataFrame:
 
     # For duplicates: keep the row with highest membrane_binary (membrane wins),
     # and pick the most specific membrane_type available.
-    def resolve(group):
-        row = group.sort_values(
-            ["membrane_binary", "membrane_type"], ascending=[False, False]
-        ).iloc[0]
-        return row
-
-    deduped = (combined.groupby("seq_hash", group_keys=False)
-               .apply(resolve)
-               .reset_index(drop=True))
+    deduped = combined.sort_values(
+        ["membrane_binary", "membrane_type"], ascending=[False, False]
+    ).drop_duplicates(subset=["seq_hash"], keep="first").reset_index(drop=True)
     log.info(f"After deduplication: {len(deduped)} unique sequences")
     return deduped
 
@@ -477,11 +471,14 @@ def main():
         val   = df_all.iloc[int(n*0.8):int(n*0.9)]
         test  = df_all.iloc[int(n*0.9):]
 
-    # Add split column to full df
-    split_col = pd.Series("train", index=df_all.index)
-    split_col.iloc[val.index]  = "val"
-    split_col.iloc[test.index] = "test"
-    df_all["split"] = split_col.values
+    # Add split column to individual dfs and re-concatenate into df_all
+    train = train.copy()
+    val = val.copy()
+    test = test.copy()
+    train["split"] = "train"
+    val["split"] = "val"
+    test["split"] = "test"
+    df_all = pd.concat([train, val, test], ignore_index=True)
 
     # ── 4. Save binary dataset ──────────────────────────────────────────────
     binary_cols = ["seq_hash", "sequence", "membrane_binary", "source", "split"]
@@ -494,8 +491,6 @@ def main():
 
     # ── 6. Save split CSVs (handy for direct training) ──────────────────────
     for split_name, split_df in [("train", train), ("val", val), ("test", test)]:
-        split_df = split_df.copy()
-        split_df["split"] = split_name
         save_csv(split_df[multi_cols],
                  OUT_DIR / f"split_{split_name}.csv",
                  split_name)
