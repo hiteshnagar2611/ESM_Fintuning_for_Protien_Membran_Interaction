@@ -2,3 +2,4 @@ esm_membrane_dataset/
 test_pandas.py
 __pycache__/
 *.pyc
+esm_membrane_finetuned/
